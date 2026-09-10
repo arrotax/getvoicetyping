@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home</title>
+
+  <!-- =========================================================
+       EDIT AREA (YOU CHANGE ONLY THIS BLOCK)
+       ---------------------------------------------------------
+       You edit only:
+       1) GA4_MEASUREMENT_ID (optional)
+       2) THEME (overall colors)
+       3) BUTTON_LAYOUT (button heights)
+       4) UI_FLAGS (toggles)
+       5) HERO (text on video)
+       6) HERO_TEXT_STYLE (readability panel + text colors)
+       7) HERO_VIDEO_FILE (video file name in same folder)
+       8) BUTTONS (add/disable/reorder buttons)
+       9) FOOTER (brand + policy links)
+  ========================================================== -->
+  <script>
+    /* =========================
+       1) GOOGLE ANALYTICS (GA4)
+       -------------------------
+       Put your GA4 Measurement ID here (G-XXXXXXXXXX).
+       Leave "" to disable analytics.
+    ========================== */
+    const GA4_MEASUREMENT_ID = ""; // e.g. "G-ABCD1234EF"
+
+    /* =========================
+       2) COLOR PALETTE (NEUTRAL BEIGE)
+       -------------------------
+       Change these to recolor the entire page.
+    ========================== */
+    const THEME = {
+      bg: "#f5f1ea",                     // warm beige background
+      gradientA: "#e9dfd1",              // soft glow 1
+      gradientB: "#d8cfc2",              // soft glow 2
+      text: "rgba(34,34,34,0.92)",       // main text (page)
+      muted: "rgba(34,34,34,0.60)",      // secondary text (page)
+      stroke: "rgba(34,34,34,0.12)",     // borders
+      cardTop: "rgba(255,255,255,0.60)", // button background top
+      cardBot: "rgba(255,255,255,0.42)", // button background bottom
+      shadow: "rgba(0,0,0,0.16)"         // shadow tint
+    };
+
+    /* =========================
+       3) BUTTON SIZE (RESPONSIVE)
+       ----------------------------
+       Keep all buttons the same height.
+       Desktop vs mobile heights.
+    ========================== */
+    const BUTTON_LAYOUT = {
+      heightDesktop: "84px",
+      heightMobile: "72px"
+    };
+
+    /* =========================
+       4) UI TOGGLES
+       ----------------------------
+       - showButtonSubtitles: show/hide all subtitles
+       - enableFeaturedStyle: allow featured highlighting if button has featured:true
+    ========================== */
+    const UI_FLAGS = {
+      showButtonSubtitles: true,
+      enableFeaturedStyle: true
+    };
+
+    /* =========================
+       5) HERO TEXT (OVER VIDEO)
+       --------------------------
+       kicker: small line above title (set "" to hide)
+       title: big headline (caps recommended)
+       subtitle: explanation line
+    ========================== */
+    const HERO = {
+      kicker: "YOU DON’T NEED MORE DISCIPLINE",
+      title: "YOU NEED A SYSTEM THAT HOLDS",
+      subtitle: "When anxiety, action, and decisions stop fighting each other."
+    };
+
+    /* =========================
+       6) HERO READABILITY (EDIT HERE)
+       -------------------------
+       This controls text readability over the video.
+       - textColor: forces hero text color (separate from page theme)
+       - panelBackground: the backplate behind text (set "transparent" to remove)
+       - overlayGradient: darkens video slightly; reduce if video looks too dark
+    ========================== */
+    const HERO_TEXT_STYLE = {
+      textColor: "rgba(255,255,255,0.95)",
+      subtitleColor: "rgba(255,255,255,0.80)",
+      textShadow: "0 2px 12px rgba(0,0,0,0.55)",
+
+      /*panelBackground: "rgba(0,0,0,0.30)",
+      panelBlur: "6px",*/
+      panelBackground: "transparent",
+      panelBlur: "0px",
+      panelRadius: "14px",
+      panelPadding: "12px 14px",
+
+      overlayGradientTop: "rgba(0,0,0,0.04)",
+      overlayGradientMid: "rgba(0,0,0,0.28)",
+      overlayGradientBottom: "rgba(0,0,0,0.42)"
+    };
+
+    /* =========================
+       7) VIDEO FILE (SAME FOLDER)
+    ========================== */
+    const HERO_VIDEO_FILE = "synvora-video.mp4";
+
+    /* =========================
+       8) BUTTONS (MAIN WORK AREA)
+       ----------------------------
+       Fields you edit:
+       - title, subtitle, href, enabled, order
+       Optional:
+       - featured: true (adds TOP STRIPE highlight)
+       Important:
+       - id should stay stable (used for analytics)
+    ========================== */
+    const BUTTONS = [
+      {
+        id: "product-brain",
+        title: "The Resilient Brain - Protect Your Mind ",
+        subtitle: "",
+        href: "resilient-brain.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+      {
+        id: "product-safety",
+        title: "The Safety System for Women - Know Exactly When to Leave",
+        subtitle: "",
+        href: "why-you-stay.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+      {
+        id: "product-21day-reset",
+        title: "Anxiety, Overthinking and Feeling Stuck - The 21-Day Reset System",
+        subtitle: "",
+        href: "why-you-feel-stuck.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+      {
+        id: "product-burnout",
+        title: "The Complete Burnout Cure",
+        subtitle: "",
+        href: "burnout-cure.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+            {
+        id: "product-60seconds",
+        title: "The First 60 Seconds - A Complete Manual on What to Do Before the Abulance arrives",
+        subtitle: "",
+        href: "first-60-seconds.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+                  {
+        id: "product-rules",
+        title: "The Unwritten Rules - 47 Secret Protocols from Elite Specialists",
+        subtitle: "",
+        href: "the-unwritten-rules.html",
+        enabled: true,
+        order: 10,
+        featured: true
+      },
+      {
+        id: "free_emergency_tools",
+        title: "FREE: Emergency Tools (When You’re Frozen Right Now)",
+        subtitle: "",
+        href: "emergency-tools.html",
+        enabled: true,
+        order: 20
+      },
+      {
+        id: "free_stuck_test",
+        title: "FREE: Stuck Test (Why Tools Haven’t Worked Yet)",
+        subtitle: "",
+        href: "the-stuck-test.html",
+        enabled: true,
+        order: 30
+      },
+      {
+        id: "telegram",
+        title: "More resources on Telegram",
+        subtitle: "Updates + extra materials",
+        href: "https://t.me/yourchannel",
+        enabled: false,
+        order: 40
+      }
+    ];
+
+    /* =========================
+       9) FOOTER
+    ========================== */
+    const FOOTER = {
+      brand: "Synvora",
+      privacyHref: "/privacy.html",
+      termsHref: "/terms.html"
+    };
+
+    /* =========================
+       10) FEATURED STRIPE (TOP BAR)
+       ----------------------------
+       Featured buttons will show a stripe on top.
+       Change these to adjust the stripe look.
+    ========================== */
+    const FEATURED_STRIPE = {
+      height: "4px",                     // stripe thickness
+      color: "rgba(34,34,34,0.55)",       // stripe color (works on beige)
+      radius: "18px"                     // should match --radius if you change it
+    };
+  </script>
+  <!-- ===================== END EDIT AREA ===================== -->
+
+  <style>
+    :root {
+      /* Defaults (JS overwrites from config) */
+      --bg: #f5f1ea;
+      --gradA: #e9dfd1;
+      --gradB: #d8cfc2;
+      --text: rgba(34, 34, 34, 0.92);
+      --muted: rgba(34, 34, 34, 0.60);
+      --stroke: rgba(34, 34, 34, 0.12);
+      --cardTop: rgba(255, 255, 255, 0.60);
+      --cardBot: rgba(255, 255, 255, 0.42);
+      --shadow: rgba(0, 0, 0, 0.16);
+
+      --radius: 18px;
+      --button-height: 84px;
+
+      --hero-overlay-top: rgba(0, 0, 0, 0.04);
+      --hero-overlay-mid: rgba(0, 0, 0, 0.28);
+      --hero-overlay-bottom: rgba(0, 0, 0, 0.42);
+
+      --featured-stripe-height: 4px;
+      --featured-stripe-color: rgba(34, 34, 34, 0.55);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 70% 0%, var(--gradA) 0%, rgba(245, 241, 234, 0.0) 55%),
+        radial-gradient(900px 500px at 10% 20%, var(--gradB) 0%, rgba(245, 241, 234, 0.0) 60%),
+        var(--bg);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 28px 16px 56px;
+    }
+
+    .wrap {
+      width: min(780px, 100%);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.18));
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      aspect-ratio: 16/9;
+    }
+
+    .hero video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      filter: contrast(1.03) saturate(1.00);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg,
+          var(--hero-overlay-top) 0%,
+          var(--hero-overlay-mid) 68%,
+          var(--hero-overlay-bottom) 100%);
+      display: flex;
+      align-items: flex-end;
+      padding: 18px 18px 16px;
+    }
+
+    .hgroup {
+      width: 100%;
+      max-width: 620px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.30);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .kicker {
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    .title {
+      margin: 0 0 6px;
+      font-size: clamp(26px, 5vw, 42px);
+      line-height: 1.08;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .sub {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.35;
+      max-width: 58ch;
+    }
+
+    .stack {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: var(--button-height);
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, var(--cardTop) 0%, var(--cardBot) 100%);
+      text-decoration: none;
+      color: var(--text);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.10);
+      transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(34, 34, 34, 0.20);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+    }
+
+    /* Featured highlight = TOP STRIPE */
+    .btn.featured::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: var(--featured-stripe-height);
+      background: var(--featured-stripe-color);
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+    }
+
+    .btxt {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .bttl {
+      disturbed? no. margin: 0;
+      font-weight: 800;
+      letter-spacing: .02em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bsub {
+      margin: 4px 0 0;
+      font-size: 13px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chev {
+      opacity: .65;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .footer {
+      margin-top: 18px;
+      color: rgba(34, 34, 34, 0.55);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .footer a {
+      color: rgba(34, 34, 34, 0.65);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(34, 34, 34, 0.25)
+    }
+
+    /* Mobile fixes: hero text too big, panel too large */
+    @media (max-width: 480px) {
+      .overlay {
+        padding: 12px;
+        /* less padding around the panel */
+      }
+
+      .hgroup {
+        max-width: 100%;
+        padding: 10px 10px;
+        /* smaller panel padding */
+      }
+
+      .title {
+        font-size: 22px;
+        /* hard cap on mobile */
+        line-height: 1.10;
+      }
+
+      .sub {
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .kicker {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+
+    <!-- HERO VIDEO -->
+    <section class="hero" aria-label="Hero video">
+      <video id="heroVideo" autoplay muted loop playsinline preload="metadata"></video>
+
+      <div class="overlay" id="heroOverlay">
+        <div class="hgroup" id="heroPanel">
+          <p class="kicker" id="heroKicker"></p>
+          <h1 class="title" id="heroTitle"></h1>
+          <p class="sub" id="heroSubtitle"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="stack" id="buttons" aria-label="Links"></section>
+
+    <div class="footer">
+      <span>© <span id="y"></span> <span id="brandName"></span></span>
+      <span>
+        <a id="privacyLink" href="#">Privacy</a> · <a id="termsLink" href="#">Terms</a>
+      </span>
+    </div>
+
+  </main>
+
+  <script>
+    // Apply THEME + FEATURED_STRIPE to CSS variables
+    (function applyTheme() {
+      const r = document.documentElement;
+      const map = {
+        "--bg": THEME.bg,
+        "--gradA": THEME.gradientA,
+        "--gradB": THEME.gradientB,
+        "--text": THEME.text,
+        "--muted": THEME.muted,
+        "--stroke": THEME.stroke,
+        "--cardTop": THEME.cardTop,
+        "--cardBot": THEME.cardBot,
+        "--shadow": THEME.shadow,
+
+        "--featured-stripe-height": FEATURED_STRIPE.height,
+        "--featured-stripe-color": FEATURED_STRIPE.color,
+
+        "--hero-overlay-top": HERO_TEXT_STYLE.overlayGradientTop,
+        "--hero-overlay-mid": HERO_TEXT_STYLE.overlayGradientMid,
+        "--hero-overlay-bottom": HERO_TEXT_STYLE.overlayGradientBottom
+      };
+      for (const k in map) r.style.setProperty(k, map[k]);
+    })();
+
+    // Responsive button height (mobile vs desktop)
+    function applyButtonHeight() {
+      const isMobile = window.innerWidth < 768;
+      document.documentElement.style.setProperty(
+        "--button-height",
+        isMobile ? BUTTON_LAYOUT.heightMobile : BUTTON_LAYOUT.heightDesktop
+      );
+    }
+    applyButtonHeight();
+    window.addEventListener("resize", applyButtonHeight);
+
+    // GA4 init (optional)
+    (function initGA4() {
+      if (!GA4_MEASUREMENT_ID || GA4_MEASUREMENT_ID.trim() === "") return;
+
+      const s1 = document.createElement("script");
+      s1.async = true;
+      s1.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(GA4_MEASUREMENT_ID);
+      document.head.appendChild(s1);
+
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { dataLayer.push(arguments); };
+      gtag("js", new Date());
+      gtag("config", GA4_MEASUREMENT_ID, { send_page_view: true });
+    })();
+
+    // Apply hero readability styles from HERO_TEXT_STYLE
+    (function applyHeroTextStyle() {
+      const overlay = document.getElementById("heroOverlay");
+      const panel = document.getElementById("heroPanel");
+      if (!overlay || !panel) return;
+
+      overlay.style.color = HERO_TEXT_STYLE.textColor;
+
+      const subtitleEl = overlay.querySelector(".sub");
+      if (subtitleEl) subtitleEl.style.color = HERO_TEXT_STYLE.subtitleColor;
+
+      panel.style.background = HERO_TEXT_STYLE.panelBackground;
+      panel.style.backdropFilter = `blur(${HERO_TEXT_STYLE.panelBlur})`;
+      panel.style.webkitBackdropFilter = `blur(${HERO_TEXT_STYLE.panelBlur})`;
+      panel.style.borderRadius = HERO_TEXT_STYLE.panelRadius;
+      panel.style.padding = HERO_TEXT_STYLE.panelPadding;
+
+      const texts = overlay.querySelectorAll(".title, .kicker, .sub");
+      texts.forEach(el => el.style.textShadow = HERO_TEXT_STYLE.textShadow);
+    })();
+
+    // Render hero text
+    (function renderHero() {
+      const kickerEl = document.getElementById("heroKicker");
+      kickerEl.textContent = HERO.kicker || "";
+      document.getElementById("heroTitle").textContent = HERO.title || "";
+      document.getElementById("heroSubtitle").textContent = HERO.subtitle || "";
+      if (!HERO.kicker) kickerEl.style.display = "none";
+    })();
+
+    // Init video source
+    (function initVideo() {
+      const v = document.getElementById("heroVideo");
+      const srcMp4 = document.createElement("source");
+      srcMp4.src = HERO_VIDEO_FILE;
+      srcMp4.type = "video/mp4";
+      v.appendChild(srcMp4);
+    })();
+
+    // Footer render
+    (function renderFooter() {
+      document.getElementById("y").textContent = new Date().getFullYear();
+      document.getElementById("brandName").textContent = FOOTER.brand || "";
+
+      const p = document.getElementById("privacyLink");
+      const t = document.getElementById("termsLink");
+      p.href = FOOTER.privacyHref || "#";
+      t.href = FOOTER.termsHref || "#";
+    })();
+
+    // Analytics click
+    function trackClick(btn) {
+      if (typeof window.gtag !== "function") return;
+      try {
+        gtag("event", "link_click", {
+          event_category: "navigation",
+          event_label: btn.id,
+          link_text: btn.title,
+          link_url: btn.href,
+          button_order: btn.order
+        });
+      } catch (e) { }
+    }
+
+    function safeText(s) { return (s ?? "").toString(); }
+
+    // Render buttons from config
+    function renderButtons() {
+      const container = document.getElementById("buttons");
+      container.innerHTML = "";
+
+      const active = (BUTTONS || [])
+        .filter(b => !!b && b.enabled === true)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      active.forEach(btn => {
+        const a = document.createElement("a");
+
+        const isFeatured = UI_FLAGS.enableFeaturedStyle && btn.featured === true;
+        a.className = "btn" + (isFeatured ? " featured" : "");
+        a.href = btn.href;
+        a.rel = "noopener";
+
+        const title = safeText(btn.title);
+        const subtitle = safeText(btn.subtitle);
+
+        a.innerHTML = `
+          <div class="btxt">
+            <p class="bttl">${title}</p>
+            ${((UI_FLAGS.showButtonSubtitles !== false) && subtitle)
+            ? `<p class="bsub">${subtitle}</p>`
+            : ``}
+          </div>
+          <div class="chev">›</div>
+        `;
+
+        a.addEventListener("click", (e) => {
+          trackClick(btn);
+
+          // If GA events ever miss due to fast navigation, enable:
+          // e.preventDefault();
+          // setTimeout(() => window.location.href = btn.href, 180);
+        });
+
+        container.appendChild(a);
+      });
+    }
+
+    renderButtons();
+  </script>
+</body>
+
+</html>
