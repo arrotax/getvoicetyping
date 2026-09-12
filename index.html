@@ -19,8 +19,9 @@
 
   Second pass, 2026-09-12, after the first real look: the title and the text had no visible
   edges and read as loose text on a grey ground, there was no explanation of what the page
-  was, and nothing pointed at the extension. All three are fixed by giving the note a card
-  with real borders, a "how it works" block under it, and one prominent link.
+  was, and nothing pointed at the extension. Fixed by giving the note a card with real
+  borders and one prominent link. The explanation lived under the note for a few hours and
+  then moved into the drawer (How it works): the page is a clean window for typing.
 -->
 
 <style>
@@ -141,26 +142,58 @@
   .cmd-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
   .cmd-head select { flex: 1; min-width: 180px; max-width: none; }
   .empty { color: var(--muted); font-size: 14px; padding: 18px 12px; }
+  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 6px 11px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .list-head button { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--bad); background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
+  .list-head button:hover { background: var(--badbg); }
+  .editor.locked { background: var(--bg); color: var(--ink2); }
+  .new-note { flex: none; padding: 8px 16px; font-size: 15px; }
 
-  .side-menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 4px; border-top: 1px solid var(--line); }
+  /* ---------- folders ---------- */
+  .folders { padding: 0 8px 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .folders-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 4px 11px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  }
+  .folders-head button { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--accent); background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
+  .folders-head button:hover { background: var(--accent-soft); }
+  .folder {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 11px; border-radius: 9px; cursor: pointer;
+    border: 1px solid transparent; font-size: 14px; color: var(--ink);
+  }
+  .folder:hover { background: var(--bg); }
+  .folder.current { background: var(--accent-soft); color: var(--accent); }
+  .folder .ico { width: 16px; height: 16px; flex: none; color: var(--muted); }
+  .folder.current .ico { color: var(--accent); }
+  .folder .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .folder .count { font-size: 12px; color: var(--muted); }
+  .folder .note-actions { display: none; }
+  .folder:hover .note-actions, .folder:focus-within .note-actions { display: flex; }
+  .folder:hover .count { display: none; }
+
+  /* ---------- hotkey ---------- */
+  .hotkey { padding: 4px 8px; min-height: 30px; }
+  .hotkey kbd { font: inherit; font-size: 13px; font-weight: 600; }
+  .hotkey.recording { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .btn.small { min-height: 28px; padding: 3px 10px; font-size: 12px; margin-top: 6px; }
+
+  /* Compact on purpose: every pixel here is a pixel the note list does not get. */
+  .side-menu { display: flex; flex-direction: column; gap: 0; padding: 4px 12px 2px; border-top: 1px solid var(--line); }
   .menu-item {
-    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
-    border: 0; background: transparent; color: var(--ink2); text-decoration: none; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 7px;
+    border: 0; background: transparent; color: var(--ink2); text-decoration: none; font-size: 13px; font-weight: 600;
     text-align: left; width: 100%;
   }
   .menu-item:hover { background: var(--bg); color: var(--ink); }
-  .menu-item .ico { width: 17px; height: 17px; color: var(--muted); }
-  .copy { padding: 0 14px 12px; font-size: 12px; color: var(--muted); }
+  .menu-item.on { background: var(--accent-soft); color: var(--accent); }
+  .menu-item.on .ico { color: var(--accent); }
+  .menu-item .ico { width: 15px; height: 15px; color: var(--muted); }
+  .copy { padding: 0 14px 8px; font-size: 11px; color: var(--muted); }
 
   /* The one thing the sidebar sells: the extension. Kept at the bottom where the eye
      rests after the list, in the brand blue so it reads as a different product. */
-  .promo {
-    margin: 4px 12px 8px; padding: 14px; border-radius: var(--radius);
-    background: var(--brand-soft); border: 1px solid transparent;
-  }
-  .promo b { display: block; margin-bottom: 4px; font-size: 14px; }
-  .promo p { margin: 0 0 10px; font-size: 13px; color: var(--ink2); }
-  .promo .btn { width: 100%; justify-content: center; }
+  .promo { margin: 2px 12px 6px; padding: 0; }
+  .promo p { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+  .promo .btn { width: 100%; justify-content: center; min-height: 36px; }
 
   /* ---------- main ---------- */
   .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
@@ -196,8 +229,10 @@
     box-shadow: var(--shadow);
   }
   .note-card { display: flex; flex-direction: column; }
+  .title-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding-right: 12px; }
+  .folder-sel { max-width: 170px; min-height: 36px; padding: 5px 30px 5px 10px; font-size: 13px; flex: none; }
   .title {
-    width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+    flex: 1; min-width: 0; border: 0; background: transparent;
     font-size: 22px; font-weight: 700; letter-spacing: -.015em; padding: 16px 20px; color: var(--ink);
     border-radius: var(--radius) var(--radius) 0 0;
   }
@@ -210,6 +245,25 @@
   }
   .editor:focus { box-shadow: inset 0 0 0 2px var(--accent); }
   .editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+  .editor h2 { font-size: 1.45em; line-height: 1.3; margin: .6em 0 .3em; letter-spacing: -.015em; }
+  .editor h3 { font-size: 1.18em; line-height: 1.35; margin: .6em 0 .25em; }
+  .editor h2:first-child, .editor h3:first-child { margin-top: 0; }
+  .editor ul, .editor ol { margin: .3em 0; padding-left: 1.6em; }
+  .editor blockquote { margin: .4em 0; padding: .1em 0 .1em 1em; border-left: 3px solid var(--line); color: var(--ink2); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 2px; padding: 6px 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .tb {
+    display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+    border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink2); cursor: pointer;
+  }
+  .tb:hover { background: var(--bg); border-color: var(--line); }
+  .tb.on { background: var(--accent-soft); color: var(--accent); }
+  .tb:disabled { opacity: .4; cursor: default; }
+  .tb .ico { width: 17px; height: 17px; }
+  .tb-sep { width: 1px; height: 20px; background: var(--line); margin: 0 6px; }
 
   .strip {
     display: flex; align-items: center; gap: 12px; padding: 9px 20px;
@@ -229,22 +283,13 @@
   .notice a { color: inherit; font-weight: 600; }
 
   /* ---------- how it works ---------- */
-  .help { padding: 20px 22px; }
-  .help h2 { margin: 0 0 12px; font-size: 16px; }
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .steps { display: grid; gap: 12px; margin: 0 0 18px; padding: 0; list-style: none; }
   .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink2); }
   .steps .n {
     flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
     display: grid; place-items: center; font-weight: 700; font-size: 12px;
   }
   .steps b { color: var(--ink); }
-  .cmds { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 6px; }
-  .cmds span {
-    font-size: 13px; padding: 3px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--ink2);
-  }
-  .cmds span b { color: var(--accent); font-weight: 700; margin-left: 4px; }
-  .help .hint { margin: 0; font-size: 13px; color: var(--muted); }
-  .help .hint a { font-weight: 600; }
 
   /* ---------- footer ---------- */
   .foot {
@@ -309,7 +354,6 @@
     .strip { padding: 8px 14px; }
     .rec-btn .label { display: none; }
     .rec-btn { padding: 11px 12px; }
-    .steps { grid-template-columns: 1fr; }
     .cmd-row { flex-wrap: wrap; }
     .cmd-row input { width: 100%; }
     .note-actions { display: flex; }
@@ -343,16 +387,22 @@
     <aside class="side" id="side">
       <div class="side-tools">
         <input type="search" id="search" placeholder="Search notes" aria-label="Search notes">
-        <button class="btn icon" id="newNote" title="New note" aria-label="New note">
-          <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
       </div>
       <div class="side-filter" role="group" aria-label="Show">
         <button class="btn primary" id="filterAll" type="button">All notes</button>
         <button class="btn" id="filterStarred" type="button">Favourites</button>
       </div>
+      <div class="folders" id="folders" aria-label="Folders"></div>
       <div class="notes" id="notes"></div>
       <nav class="side-menu" aria-label="More">
+        <button class="menu-item" id="menuTrash" type="button">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>
+          Recently deleted
+        </button>
+        <button class="menu-item" id="menuHelp" type="button">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5"/><path d="M12 17h.01"/></svg>
+          How it works
+        </button>
         <button class="menu-item" id="menuWords" type="button">
           <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
           Spoken punctuation
@@ -361,7 +411,7 @@
           <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
           Settings
         </button>
-        <a class="menu-item" href="/privacy/">
+        <a class="menu-item" href="https://getvoicetyping.com/privacy/" target="_blank" rel="noopener">
           <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
           Privacy policy
         </a>
@@ -371,8 +421,7 @@
         </a>
       </nav>
       <div class="promo">
-        <b>Dictate anywhere in Chrome</b>
-        <p>This page is a notepad. The extension puts the same dictation into any text field — Gmail, Google Docs, chats, forms.</p>
+        <p>The Voice Typing Chrome extension puts the same dictation into any text field — Gmail, Google Docs, chats, forms.</p>
         <a class="btn brand ext-link" href="#" target="_blank" rel="noopener">Get the extension</a>
       </div>
       <div class="copy">&copy; <span id="year">2026</span> New Horizon Studio</div>
@@ -388,6 +437,10 @@
           </button>
           <select class="lang" id="lang" aria-label="Recognition language"></select>
           <span class="grow"></span>
+          <button class="btn primary new-note" id="newNote" title="New note (Ctrl+Alt+N)">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            New note
+          </button>
           <button class="btn icon" id="star" title="Add to favourites" aria-label="Add to favourites" aria-pressed="false">
             <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.8 6.1 21l1.2-6.5L2.5 9.9 9.1 9z"/></svg>
           </button>
@@ -418,7 +471,27 @@
         </div>
 
         <section class="card note-card" aria-label="Note">
-          <input class="title" id="title" placeholder="Untitled note" aria-label="Note title">
+          <div class="title-row">
+            <input class="title" id="title" placeholder="Untitled note" aria-label="Note title">
+            <select class="lang folder-sel" id="folderSel" aria-label="Folder of this note" title="Move this note to a folder"></select>
+          </div>
+          <div class="toolbar" id="toolbar" role="toolbar" aria-label="Formatting">
+            <button type="button" class="tb" data-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold"><svg class="ico" viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 0 1 0 8H6z"/><path d="M6 12h9a4 4 0 0 1 0 8H6z"/></svg></button>
+            <button type="button" class="tb" data-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic"><svg class="ico" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4L9 20"/></svg></button>
+            <button type="button" class="tb" data-cmd="underline" title="Underline (Ctrl+U)" aria-label="Underline"><svg class="ico" viewBox="0 0 24 24"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><path d="M4 20h16"/></svg></button>
+            <button type="button" class="tb" data-cmd="strikeThrough" title="Strikethrough" aria-label="Strikethrough"><svg class="ico" viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><path d="M4 12h16"/></svg></button>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb" data-block="h2" title="Heading" aria-label="Heading"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6"/><path d="M17 12a2 2 0 1 1 3 1.5L17 18h4"/></svg></button>
+            <button type="button" class="tb" data-block="h3" title="Subheading" aria-label="Subheading"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6"/><path d="M17.5 10.5c1.7-1 3.5 0 3.5 1.5a1.8 1.8 0 0 1-1.8 1.8"/><path d="M17 17.5c2 1.5 4 0 4-1.5a1.8 1.8 0 0 0-1.8-1.8"/></svg></button>
+            <button type="button" class="tb" data-block="blockquote" title="Quote" aria-label="Quote"><svg class="ico" viewBox="0 0 24 24"><path d="M17 6H3"/><path d="M21 12H8"/><path d="M21 18H8"/><path d="M3 12v6"/></svg></button>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+            <button type="button" class="tb" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list"><svg class="ico" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+            <span class="tb-sep"></span>
+            <button type="button" class="tb" data-cmd="removeFormat" title="Clear formatting" aria-label="Clear formatting"><svg class="ico" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M5 20h6"/><path d="M13 4L8 20"/><path d="M15 15l5 5"/><path d="M20 15l-5 5"/></svg></button>
+            <button type="button" class="tb" data-cmd="undo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="ico" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+            <button type="button" class="tb" data-cmd="redo" title="Redo (Ctrl+Y)" aria-label="Redo"><svg class="ico" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
+          </div>
           <div class="editor" id="editor" contenteditable="true" data-placeholder="Press Start dictation and speak — or just type here." spellcheck="true"></div>
           <div class="strip">
             <span class="live" id="live"></span>
@@ -426,19 +499,6 @@
           </div>
         </section>
 
-        <section class="card help" aria-label="How it works">
-          <h2>How it works</h2>
-          <ol class="steps">
-            <li><span class="n">1</span><span><b>Press Start dictation</b> and allow the microphone when asked.</span></li>
-            <li><span class="n">2</span><span><b>Speak naturally.</b> Each phrase appears in the note as you finish it.</span></li>
-            <li><span class="n">3</span><span><b>Say the punctuation.</b> "Comma", "full stop", "new line" become marks — the words for each language are set below.</span></li>
-          </ol>
-          <p class="hint">
-            Recognition is done by Chrome, so the audio goes to Google's speech service the way it
-            does for any site that uses it. This page has no server of its own: notes stay in this
-            browser and nothing is uploaded.
-          </p>
-        </section>
       </div>
     </main>
   </div>
@@ -453,6 +513,27 @@
     </button>
   </header>
   <div class="sbody">
+    <section id="sheetHelp" hidden>
+      <ol class="steps">
+        <li><span class="n">1</span><span><b>Press Start dictation</b> and allow the microphone when asked.</span></li>
+        <li><span class="n">2</span><span><b>Speak naturally.</b> Each phrase appears in the note as you finish it.</span></li>
+        <li><span class="n">3</span><span><b>Say the punctuation.</b> "Comma", "full stop", "new line" become marks — the words for each language are under Spoken punctuation.</span></li>
+        <li><span class="n">4</span><span><b>Say "scratch that"</b> to take the last phrase back out.</span></li>
+        <li><span class="n">5</span><span><b>Dictation stops by itself</b> after 30 seconds of silence, or on Esc.</span></li>
+      </ol>
+      <h3>Notes</h3>
+      <p class="hint">
+        Every note is saved as you type. The star keeps a note at the top; folders group them —
+        make one with "+ New" above the list, then pick it in the box above the note. Notes stay in
+        this browser only, so take a backup from Settings now and then.
+      </p>
+      <h3>Where the audio goes</h3>
+      <p class="hint">
+        Recognition is done by Chrome, so the audio goes to Google's speech service the way it does
+        for any site that uses it. This page has no server of its own: notes stay in this browser and
+        nothing is uploaded.
+      </p>
+    </section>
     <section id="sheetWords">
       <h3>Spoken punctuation</h3>
       <p>Say the word while dictating and the mark appears. Leave a field empty to switch that one off.</p>
@@ -468,10 +549,17 @@
     <section>
       <h3>Keyboard</h3>
       <table class="keys">
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Q</kbd></td><td>start or stop dictation</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></td><td>the same, for Linux, where Chrome keeps Ctrl+Q for quitting</td></tr>
+        <tr>
+          <td><button class="btn hotkey" id="hotkey" type="button" title="Click, then press the keys you want"><kbd id="hotkeyLabel">Ctrl+Q</kbd></button></td>
+          <td>start or stop dictation — click and press a new combination
+            <div class="hint" id="hotkeyHint">Needs Ctrl, Alt or Shift with a key, or an F-key. Ctrl+Shift+D always works too.</div>
+            <button class="btn small" id="hotkeyReset" type="button">Reset to Ctrl+Q</button>
+          </td>
+        </tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd></td><td>new note</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>stop</td></tr>
       </table>
+      <p class="hint">Some combinations never reach a page — the browser keeps them for itself (Ctrl+T, Ctrl+W, Ctrl+N, and on Linux Ctrl+Q).</p>
     </section>
     <section>
       <h3>Sound</h3>
@@ -484,6 +572,20 @@
         <button class="btn" data-theme="light">Light</button>
         <button class="btn" data-theme="dark">Dark</button>
       </div>
+    </section>
+    <section>
+      <h3>Backup</h3>
+      <p class="hint">
+        Notes live in this browser only — there is no account yet. Clearing the browser's site data,
+        or opening the page in another browser, starts from nothing. A backup is one file with every
+        note and your punctuation words; restoring merges it into what is here and never deletes anything.
+      </p>
+      <div class="theme-row">
+        <button class="btn" id="backupSave">Download backup</button>
+        <button class="btn" id="backupLoad">Restore from backup</button>
+        <input type="file" id="backupFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="hint" id="backupStatus"></p>
     </section>
     <section>
       <h3>Privacy</h3>
