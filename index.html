@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Typing Notepad</title>
+<meta name="description" content="Dictate notes in your browser. Speech becomes text as you talk, with spoken punctuation and 70 languages. Nothing is uploaded.">
+
+<!--
+  Voice Typing Notepad - a dictation notepad that runs entirely in the browser.
+
+  Static files, no server. Notes live in localStorage, recognition is Chrome's Web Speech
+  API, and the punctuation, spacing and language logic is the same code the extension
+  ships (copied in by tools/build-notepad.ps1, never edited here).
+
+  Why it exists next to the extension: people search for "voice typing online" and land on
+  a page, not on a store listing. This page is that landing - try it without installing
+  anything, and the extension is one click away for dictating into every other site.
+
+  Second pass, 2026-09-12, after the first real look: the title and the text had no visible
+  edges and read as loose text on a grey ground, there was no explanation of what the page
+  was, and nothing pointed at the extension. All three are fixed by giving the note a card
+  with real borders, a "how it works" block under it, and one prominent link.
+-->
+
+<style>
+  :root {
+    --bg: #F3F5F8; --panel: #FFFFFF; --ink: #101620; --ink2: #3D4657; --muted: #6B7688;
+    --line: #D9DEE6; --line-strong: #B9C2CF; --accent: #0B6E77; --accent-soft: #E3F2F3; --accent-ink: #FFFFFF;
+    --rec: #D93025; --brand: #096AD9; --brand-soft: #E7F0FC;
+    --warn: #8A5A00; --warnbg: #FFF3D6; --bad: #9E2B22; --badbg: #F8E5E3;
+    --radius: 12px; --shadow: 0 1px 2px rgba(16,22,32,.05), 0 6px 20px rgba(16,22,32,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B0F15; --panel: #141A22; --ink: #E7EBF1; --ink2: #B6BECB; --muted: #8792A2;
+      --line: #263040; --line-strong: #3A4658; --accent: #4FC9D2; --accent-soft: #123338; --accent-ink: #0B0F15;
+      --rec: #F26B5E; --brand: #4C8FE6; --brand-soft: #14243A;
+      --warn: #F0C36B; --warnbg: #3A2E10; --bad: #F09083; --badbg: #3A1B18;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B0F15; --panel: #141A22; --ink: #E7EBF1; --ink2: #B6BECB; --muted: #8792A2;
+    --line: #263040; --line-strong: #3A4658; --accent: #4FC9D2; --accent-soft: #123338; --accent-ink: #0B0F15;
+    --rec: #F26B5E; --brand: #4C8FE6; --brand-soft: #14243A;
+    --warn: #F0C36B; --warnbg: #3A2E10; --bad: #F09083; --badbg: #3A1B18;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  a { color: var(--accent); }
+  svg.ico { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ---------- frame: header on top, sidebar + main below ---------- */
+  .frame { display: flex; flex-direction: column; height: 100%; }
+  .top {
+    display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+  .brand-name { font-weight: 800; font-size: 19px; letter-spacing: -.02em; color: var(--ink); }
+  .brand-tag { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .brand .tile {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--brand); color: #fff;
+    display: grid; place-items: center; flex: none;
+  }
+  .brand .tile svg { width: 21px; height: 21px; }
+  .top .grow { flex: 1; }
+  .body { display: grid; grid-template-columns: 272px 1fr; flex: 1; min-height: 0; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 40px;
+    border: 1px solid var(--line-strong); border-radius: 9px; background: var(--panel); color: var(--ink);
+    font-weight: 600; font-size: 14px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg); }
+  a.btn { text-decoration: none; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.brand { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .btn.brand:hover { filter: brightness(1.08); }
+  .btn.icon { padding: 8px; width: 40px; justify-content: center; }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.ghost:hover { background: var(--bg); border-color: var(--line); }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  /* ---------- sidebar ---------- */
+  .side {
+    background: var(--panel); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .side-tools { display: flex; gap: 8px; padding: 14px 12px 8px; }
+  .side-tools input {
+    flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 9px;
+    background: var(--panel);
+  }
+  .side-tools input::placeholder { color: var(--muted); }
+  .notes { overflow-y: auto; flex: 1; padding: 4px 8px 12px; }
+  .note {
+    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; padding: 8px 6px 8px 11px; border-radius: 9px;
+    border: 1px solid transparent; background: transparent; margin-bottom: 3px; cursor: pointer;
+  }
+  .note:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .note-body { flex: 1; min-width: 0; }
+  /* The row buttons appear on hover and on keyboard focus. On a touch screen there is no
+     hover, so below the phone breakpoint they are simply always there. */
+  .note-actions { display: none; gap: 2px; flex: none; }
+  .note:hover .note-actions, .note:focus-within .note-actions { display: flex; }
+  .row-btn {
+    width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--muted);
+    display: grid; place-items: center; padding: 0;
+  }
+  .row-btn:hover { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+  .row-btn .ico { width: 15px; height: 15px; }
+  .row-btn.on { color: var(--warn); }
+  .row-btn.on .ico { fill: currentColor; }
+  .note:hover { background: var(--bg); }
+  .note.current { background: var(--accent-soft); border-color: transparent; }
+  .note .t { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note .m { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .note .t .star { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; fill: var(--warn); stroke: var(--warn); }
+  .side-filter { display: flex; gap: 6px; padding: 0 12px 8px; }
+  .side-filter .btn { flex: 1; justify-content: center; min-height: 32px; padding: 4px 8px; font-size: 13px; }
+  .side-filter .btn.primary { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  #star.on { color: var(--warn); }
+  #star.on svg { fill: currentColor; }
+  .cmd-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .cmd-head select { flex: 1; min-width: 180px; max-width: none; }
+  .empty { color: var(--muted); font-size: 14px; padding: 18px 12px; }
+
+  .side-menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 4px; border-top: 1px solid var(--line); }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    border: 0; background: transparent; color: var(--ink2); text-decoration: none; font-size: 14px; font-weight: 600;
+    text-align: left; width: 100%;
+  }
+  .menu-item:hover { background: var(--bg); color: var(--ink); }
+  .menu-item .ico { width: 17px; height: 17px; color: var(--muted); }
+  .copy { padding: 0 14px 12px; font-size: 12px; color: var(--muted); }
+
+  /* The one thing the sidebar sells: the extension. Kept at the bottom where the eye
+     rests after the list, in the brand blue so it reads as a different product. */
+  .promo {
+    margin: 4px 12px 8px; padding: 14px; border-radius: var(--radius);
+    background: var(--brand-soft); border: 1px solid transparent;
+  }
+  .promo b { display: block; margin-bottom: 4px; font-size: 14px; }
+  .promo p { margin: 0 0 10px; font-size: 13px; color: var(--ink2); }
+  .promo .btn { width: 100%; justify-content: center; }
+
+  /* ---------- main ---------- */
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
+  .work { max-width: 880px; width: 100%; margin: 0 auto; padding: 22px clamp(14px, 3vw, 28px) 60px; display: flex; flex-direction: column; gap: 16px; }
+
+  .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bar .grow { flex: 1; }
+  .rec-btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 11px 16px 11px 12px; min-height: 44px;
+    border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+    font-weight: 700; font-size: 15px;
+  }
+  .rec-btn:hover { filter: brightness(1.08); }
+  .rec-btn.on { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .rec-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; opacity: .55; }
+  .rec-btn.on .dot { opacity: 1; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+  @media (prefers-reduced-motion: reduce) { .rec-btn.on .dot { animation: none } }
+  .kbd {
+    font-size: 11px; font-weight: 600; color: var(--accent-ink); opacity: .85; border: 1px solid currentColor;
+    border-radius: 4px; padding: 1px 5px; letter-spacing: .03em;
+  }
+  select.lang {
+    padding: 9px 34px 9px 11px; min-height: 40px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--panel);
+    max-width: 240px; appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7688' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+
+  /* ---------- the note card: the part that was missing its edges ---------- */
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .note-card { display: flex; flex-direction: column; }
+  .title {
+    width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+    font-size: 22px; font-weight: 700; letter-spacing: -.015em; padding: 16px 20px; color: var(--ink);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .title:focus { outline: none; background: var(--accent-soft); }
+  .title::placeholder { color: var(--muted); font-weight: 600; }
+  .editor {
+    min-height: 46vh; padding: 18px 20px 24px; font-size: 17px; line-height: 1.7; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word; outline: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .editor:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+  .editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+
+  .strip {
+    display: flex; align-items: center; gap: 12px; padding: 9px 20px;
+    border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); flex-wrap: wrap;
+    min-height: 40px;
+  }
+  .strip .live { flex: 1; min-width: 0; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strip .live.hint { color: var(--warn); }
+  .strip .live.err { color: var(--bad); }
+  .strip .counts { white-space: nowrap; }
+
+  /* ---------- notices ---------- */
+  .notice { padding: 12px 14px; border-radius: var(--radius); font-size: 14px; }
+  .notice.bad { background: var(--badbg); color: var(--bad); }
+  .notice.warn { background: var(--warnbg); color: var(--warn); }
+  .notice[hidden] { display: none; }
+  .notice a { color: inherit; font-weight: 600; }
+
+  /* ---------- how it works ---------- */
+  .help { padding: 20px 22px; }
+  .help h2 { margin: 0 0 12px; font-size: 16px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink2); }
+  .steps .n {
+    flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  }
+  .steps b { color: var(--ink); }
+  .cmds { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 6px; }
+  .cmds span {
+    font-size: 13px; padding: 3px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--ink2);
+  }
+  .cmds span b { color: var(--accent); font-weight: 700; margin-left: 4px; }
+  .help .hint { margin: 0; font-size: 13px; color: var(--muted); }
+  .help .hint a { font-weight: 600; }
+
+  /* ---------- footer ---------- */
+  .foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 18px 4px 0; font-size: 13px; color: var(--muted);
+  }
+  .foot a { color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .foot a:hover { color: var(--accent); }
+  .foot .ico { width: 15px; height: 15px; }
+
+  /* ---------- settings sheet ---------- */
+  .sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 20; }
+  .sheet-back.open { display: block; }
+  .sheet {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw);
+    background: var(--panel); border-left: 1px solid var(--line); box-shadow: var(--shadow);
+    transform: translateX(100%); transition: transform .22s ease; z-index: 21;
+    display: flex; flex-direction: column;
+  }
+  .sheet.open { transform: none; }
+  @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+  .sheet header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .sheet header h2 { margin: 0; font-size: 16px; flex: 1; }
+  .sheet .sbody { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 22px; }
+  .sheet h3 { margin: 0 0 8px; font-size: 14px; }
+  .sheet p { margin: 0 0 10px; color: var(--ink2); font-size: 14px; }
+  .sheet .hint { color: var(--muted); font-size: 13px; }
+  .cmd-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .cmd-row:last-child { border-bottom: 0; }
+  .cmd-mark { width: 26px; text-align: center; font-weight: 700; color: var(--accent); flex: none; }
+  .cmd-name { flex: 1; font-size: 14px; color: var(--ink2); }
+  .cmd-row input {
+    width: 170px; padding: 7px 9px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel);
+  }
+  .toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; margin-top: 8px; }
+  .toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+  .theme-row { display: flex; gap: 8px; }
+  .keys { border-collapse: collapse; font-size: 14px; color: var(--ink2); }
+  .keys td { padding: 5px 14px 5px 0; vertical-align: top; }
+  .keys kbd {
+    font: inherit; font-size: 12px; font-weight: 600; background: var(--bg); border: 1px solid var(--line-strong);
+    border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+  }
+
+  /* ---------- small screens ---------- */
+  .menu-btn { display: none; }
+  @media (max-width: 800px) {
+    .body { grid-template-columns: 1fr; }
+    .side {
+      position: fixed; top: 0; bottom: 0; left: 0; width: min(300px, 86vw); z-index: 10;
+      transform: translateX(-100%); transition: transform .22s ease; box-shadow: var(--shadow);
+    }
+    .side.open { transform: none; }
+    .menu-btn { display: inline-flex; }
+    .top { padding: 8px 12px; }
+    .brand-tag { display: none; }
+    .brand-name { font-size: 16px; }
+    .top .ext-top { display: none; }
+    .work { padding: 14px 12px 48px; }
+    .title { font-size: 19px; padding: 13px 14px; }
+    .editor { font-size: 16px; padding: 14px 14px 20px; }
+    .strip { padding: 8px 14px; }
+    .rec-btn .label { display: none; }
+    .rec-btn { padding: 11px 12px; }
+    .steps { grid-template-columns: 1fr; }
+    .cmd-row { flex-wrap: wrap; }
+    .cmd-row input { width: 100%; }
+    .note-actions { display: flex; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <header class="top">
+    <button class="btn icon ghost menu-btn" id="menuBtn" aria-label="Notes" title="Notes">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="brand">
+      <span class="tile" aria-hidden="true">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Voice Typing Notepad</span>
+        <span class="brand-tag">Live speech to text in your browser</span>
+      </span>
+    </div>
+    <span class="grow"></span>
+    <a class="btn brand ext-top ext-link" href="#" target="_blank" rel="noopener">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7"/><path d="M15 4h5v5"/><path d="M20 4L10 14"/></svg>
+      Get the Chrome extension
+    </a>
+  </header>
+
+  <div class="body">
+    <aside class="side" id="side">
+      <div class="side-tools">
+        <input type="search" id="search" placeholder="Search notes" aria-label="Search notes">
+        <button class="btn icon" id="newNote" title="New note" aria-label="New note">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="side-filter" role="group" aria-label="Show">
+        <button class="btn primary" id="filterAll" type="button">All notes</button>
+        <button class="btn" id="filterStarred" type="button">Favourites</button>
+      </div>
+      <div class="notes" id="notes"></div>
+      <nav class="side-menu" aria-label="More">
+        <button class="menu-item" id="menuWords" type="button">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+          Spoken punctuation
+        </button>
+        <button class="menu-item" id="menuSettings" type="button">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+          Settings
+        </button>
+        <a class="menu-item" href="/privacy/">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          Privacy policy
+        </a>
+        <a class="menu-item" href="mailto:getvoicetyping@gmail.com">
+          <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          Contact us
+        </a>
+      </nav>
+      <div class="promo">
+        <b>Dictate anywhere in Chrome</b>
+        <p>This page is a notepad. The extension puts the same dictation into any text field — Gmail, Google Docs, chats, forms.</p>
+        <a class="btn brand ext-link" href="#" target="_blank" rel="noopener">Get the extension</a>
+      </div>
+      <div class="copy">&copy; <span id="year">2026</span> New Horizon Studio</div>
+    </aside>
+
+    <main class="main">
+      <div class="work">
+        <div class="bar">
+          <button class="rec-btn" id="rec" aria-pressed="false">
+            <span class="dot"></span>
+            <span class="label" id="recLabel">Start dictation</span>
+            <span class="kbd" title="Ctrl+Q, or Ctrl+Shift+D">Ctrl+Q</span>
+          </button>
+          <select class="lang" id="lang" aria-label="Recognition language"></select>
+          <span class="grow"></span>
+          <button class="btn icon" id="star" title="Add to favourites" aria-label="Add to favourites" aria-pressed="false">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.8 6.1 21l1.2-6.5L2.5 9.9 9.1 9z"/></svg>
+          </button>
+          <button class="btn icon" id="copy" title="Copy note" aria-label="Copy note">
+            <svg class="ico" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          </button>
+          <button class="btn icon" id="download" title="Download as .txt" aria-label="Download as text file">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+          </button>
+          <button class="btn icon" id="delete" title="Delete note" aria-label="Delete note">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>
+          </button>
+        </div>
+
+        <div class="notice bad" id="noApi" hidden>
+          <b>This browser cannot do speech recognition.</b> Dictation here relies on Chrome's built-in
+          speech service, which Firefox does not offer and Brave switches off. Open this page in
+          Chrome or Edge. Your notes are still here and still editable.
+        </div>
+        <div class="notice warn" id="micBlocked" hidden>
+          <b>Microphone access is blocked for this site.</b> Click the icon left of the address bar,
+          allow the microphone, then reload the page.
+        </div>
+        <div class="notice warn" id="fileOrigin" hidden>
+          <b>Opened as a local file.</b> Chrome will ask for the microphone every time on a
+          <code>file://</code> address, because it cannot remember permissions for one. Once this
+          page is served from a website, it asks once.
+        </div>
+
+        <section class="card note-card" aria-label="Note">
+          <input class="title" id="title" placeholder="Untitled note" aria-label="Note title">
+          <div class="editor" id="editor" contenteditable="true" data-placeholder="Press Start dictation and speak — or just type here." spellcheck="true"></div>
+          <div class="strip">
+            <span class="live" id="live"></span>
+            <span class="counts" id="counts">0 words</span>
+          </div>
+        </section>
+
+        <section class="card help" aria-label="How it works">
+          <h2>How it works</h2>
+          <ol class="steps">
+            <li><span class="n">1</span><span><b>Press Start dictation</b> and allow the microphone when asked.</span></li>
+            <li><span class="n">2</span><span><b>Speak naturally.</b> Each phrase appears in the note as you finish it.</span></li>
+            <li><span class="n">3</span><span><b>Say the punctuation.</b> "Comma", "full stop", "new line" become marks — the words for each language are set below.</span></li>
+          </ol>
+          <p class="hint">
+            Recognition is done by Chrome, so the audio goes to Google's speech service the way it
+            does for any site that uses it. This page has no server of its own: notes stay in this
+            browser and nothing is uploaded.
+          </p>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="sheet-back" id="sheetBack"></div>
+<aside class="sheet" id="sheet" aria-label="Settings">
+  <header>
+    <h2 id="sheetTitle">Settings</h2>
+    <button class="btn icon ghost" id="closeSheet" aria-label="Close">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
+  <div class="sbody">
+    <section id="sheetWords">
+      <h3>Spoken punctuation</h3>
+      <p>Say the word while dictating and the mark appears. Leave a field empty to switch that one off.</p>
+      <p class="hint">English and Russian come filled in. Other languages start empty — set the words your language uses.</p>
+      <div class="cmd-head">
+        <select class="lang" id="cmdLang" aria-label="Language for spoken punctuation"></select>
+        <button class="btn" id="cmdReset">Reset</button>
+      </div>
+      <div id="cmdRows"></div>
+      <p class="hint" style="margin-top:10px">Pick words nobody says by accident: a command word stops being typed as a word.</p>
+    </section>
+    <div id="sheetSettings">
+    <section>
+      <h3>Keyboard</h3>
+      <table class="keys">
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Q</kbd></td><td>start or stop dictation</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></td><td>the same, for Linux, where Chrome keeps Ctrl+Q for quitting</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>stop</td></tr>
+      </table>
+    </section>
+    <section>
+      <h3>Sound</h3>
+      <label class="toggle"><input type="checkbox" id="soundOn" checked> Short cue when dictation starts and stops</label>
+    </section>
+    <section>
+      <h3>Appearance</h3>
+      <div class="theme-row">
+        <button class="btn" data-theme="system">System</button>
+        <button class="btn" data-theme="light">Light</button>
+        <button class="btn" data-theme="dark">Dark</button>
+      </div>
+    </section>
+    <section>
+      <h3>Privacy</h3>
+      <p class="hint">
+        Notes stay in this browser's storage and are never uploaded. Speech recognition is done
+        by Chrome, which sends the audio to Google's speech service — this page has no server of
+        its own and stores no audio.
+      </p>
+    </section>
+    </div>
+  </div>
+</aside>
+
+<script src="lib/languages.js"></script>
+<script src="lib/commands.js"></script>
+<script src="lib/insert.js"></script>
+<script src="lib/targets.js"></script>
+<script src="lib/cue.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
