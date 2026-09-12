@@ -83,7 +83,7 @@
   }
   .brand .tile svg { width: 21px; height: 21px; }
   .top .grow { flex: 1; }
-  .body { display: grid; grid-template-columns: 272px 1fr; flex: 1; min-height: 0; }
+  .body { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: 0; }
 
   /* ---------- buttons ---------- */
   .btn {
@@ -101,6 +101,7 @@
   .btn.ghost { border-color: transparent; background: transparent; }
   .btn.ghost:hover { background: var(--bg); border-color: var(--line); }
   .btn:disabled { opacity: .45; cursor: default; }
+  .btn[hidden] { display: none; }
 
   /* ---------- sidebar ---------- */
   .side {
@@ -145,33 +146,58 @@
   .cmd-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
   .cmd-head select { flex: 1; min-width: 180px; max-width: none; }
   .empty { color: var(--muted); font-size: 14px; padding: 18px 12px; }
-  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 6px 11px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-  .list-head button { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--bad); background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
-  .list-head button:hover { background: var(--badbg); }
   .editor.locked { background: var(--bg); color: var(--ink2); }
   .new-note { flex: none; padding: 8px 16px; font-size: 15px; }
 
-  /* ---------- folders ---------- */
-  .folders { padding: 0 8px 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
-  .folders-head {
-    display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 4px 11px;
+  /* ---------- folders: a tree in the list ----------
+     Folders sit at the top of the note list and open in place, showing their notes indented
+     under them; the notes in no folder follow under their own heading. One scrolling list,
+     nothing disappears when a folder opens - the first version filtered the whole list to
+     the folder, and a freshly made folder showed an empty page. */
+  .list-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 4px 11px;
     font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
   }
-  .folders-head button { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--accent); background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
-  .folders-head button:hover { background: var(--accent-soft); }
+  .list-head button { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--accent); background: none; border: 0; padding: 2px 6px; border-radius: 6px; cursor: pointer; }
+  .list-head button:hover { background: var(--accent-soft); }
+  .list-head button.danger { color: var(--bad); }
+  .list-head button.danger:hover { background: var(--badbg); }
   .folder {
-    display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 11px; border-radius: 9px; cursor: pointer;
-    border: 1px solid transparent; font-size: 14px; color: var(--ink);
+    display: flex; align-items: center; gap: 6px; padding: 5px 4px 5px 6px; border-radius: 9px; cursor: pointer;
+    border: 1px solid transparent; font-size: 14px; color: var(--ink); margin-bottom: 1px;
   }
   .folder:hover { background: var(--bg); }
-  .folder.current { background: var(--accent-soft); color: var(--accent); }
-  .folder .ico { width: 16px; height: 16px; flex: none; color: var(--muted); }
-  .folder.current .ico { color: var(--accent); }
-  .folder .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-  .folder .count { font-size: 12px; color: var(--muted); }
+  .folder:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .folder .chev { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform .15s; }
+  .folder.open .chev { transform: rotate(90deg); }
+  .folder .ico { width: 16px; height: 16px; flex: none; color: var(--accent); }
+  .folder .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .folder .count { font-size: 12px; color: var(--muted); padding-right: 4px; }
   .folder .note-actions { display: none; }
-  .folder:hover .note-actions, .folder:focus-within .note-actions { display: flex; }
-  .folder:hover .count { display: none; }
+  .folder:hover .note-actions, .folder:focus-within .note-actions, .folder.menu-open .note-actions { display: flex; }
+  .folder:hover .count, .folder.menu-open .count { display: none; }
+  .note.in-folder { margin-left: 22px; width: auto; }
+  .note.menu-open .note-actions { display: flex; }
+  .folder-empty { margin: 0 0 4px 34px; padding: 6px 8px; font-size: 12px; color: var(--muted); }
+
+  /* ---------- the row menu ---------- */
+  .pop {
+    position: fixed; z-index: 30; min-width: 200px; padding: 6px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .pop[hidden] { display: none; }
+  .pop .pop-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 6px 10px 4px; }
+  .pop button {
+    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 8px 10px;
+    border: 0; border-radius: 7px; background: transparent; color: var(--ink); font-size: 14px;
+  }
+  .pop button:hover, .pop button:focus-visible { background: var(--bg); outline: none; }
+  .pop button.danger { color: var(--bad); }
+  .pop button.danger:hover { background: var(--badbg); }
+  .pop button .ico { width: 16px; height: 16px; color: var(--muted); }
+  .pop button.danger .ico { color: var(--bad); }
+  .pop button.checked .ico { color: var(--accent); }
+  .pop .pop-sep { height: 1px; background: var(--line); margin: 5px 4px; }
 
   /* ---------- hotkey ---------- */
   .hotkey { padding: 4px 8px; min-height: 30px; }
@@ -200,7 +226,7 @@
 
   /* ---------- main ---------- */
   .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; }
-  .work { max-width: 880px; width: 100%; margin: 0 auto; padding: 22px clamp(14px, 3vw, 28px) 60px; display: flex; flex-direction: column; gap: 16px; }
+  .work { max-width: 1040px; width: 100%; margin: 0 auto; padding: 22px clamp(14px, 3vw, 28px) 60px; display: flex; flex-direction: column; gap: 16px; }
 
   .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .bar .grow { flex: 1; }
@@ -320,6 +346,8 @@
   .sheet h3 { margin: 0 0 8px; font-size: 14px; }
   .sheet p { margin: 0 0 10px; color: var(--ink2); font-size: 14px; }
   .sheet .hint { color: var(--muted); font-size: 13px; }
+  .sheet ul.tight { margin: 4px 0 0; padding-left: 18px; }
+  .sheet ul.tight li { margin-bottom: 4px; }
   .cmd-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
   .cmd-row:last-child { border-bottom: 0; }
   .cmd-mark { width: 26px; text-align: center; font-weight: 700; color: var(--accent); flex: none; }
@@ -395,7 +423,6 @@
         <button class="btn primary" id="filterAll" type="button">All notes</button>
         <button class="btn" id="filterStarred" type="button">Favourites</button>
       </div>
-      <div class="folders" id="folders" aria-label="Folders"></div>
       <div class="notes" id="notes"></div>
       <nav class="side-menu" aria-label="More">
         <button class="menu-item" id="menuTrash" type="button">
@@ -467,6 +494,14 @@
           <b>Microphone access is blocked for this site.</b> Click the icon left of the address bar,
           allow the microphone, then reload the page.
         </div>
+        <div class="notice warn" id="autoPaused" hidden>
+          <b>Automatic backup is paused</b> — the browser needs permission for the folder again.
+          <button class="btn small" id="autoResumeTop" type="button" style="margin:0 0 0 8px">Resume</button>
+        </div>
+        <div class="notice bad" id="storageFull" hidden>
+          <b>Changes are not being saved</b> — the browser's storage for this site is full. Download a
+          backup from Settings, then delete some notes or empty Recently deleted.
+        </div>
         <div class="notice warn" id="fileOrigin" hidden>
           <b>Opened as a local file.</b> Chrome will ask for the microphone every time on a
           <code>file://</code> address, because it cannot remember permissions for one. Once this
@@ -507,6 +542,7 @@
   </div>
 </div>
 
+<div class="pop" id="pop" hidden role="menu"></div>
 <div class="sheet-back" id="sheetBack"></div>
 <aside class="sheet" id="sheet" aria-label="Settings">
   <header>
@@ -526,9 +562,11 @@
       </ol>
       <h3>Notes</h3>
       <p class="hint">
-        Every note is saved as you type. The star keeps a note at the top; folders group them —
-        make one with "+ New" above the list, then pick it in the box above the note. Notes stay in
-        this browser only, so take a backup from Settings now and then.
+        Every note is saved as you type. The star keeps a note at the top. Folders group notes:
+        make one with "+ New" above the list, then put a note in it from the ⋮ menu on its row (or the
+        box next to its title). A folder opens in place and shows its notes under it. Deleted notes
+        wait 30 days in Recently deleted. Notes stay in this browser only, so take a backup from
+        Settings now and then.
       </p>
       <h3>Where the audio goes</h3>
       <p class="hint">
@@ -589,6 +627,27 @@
         <input type="file" id="backupFile" accept="application/json,.json" hidden>
       </div>
       <p class="hint" id="backupStatus"></p>
+      <h3 style="margin-top:18px">Automatic backup</h3>
+      <p class="hint">
+        Pick a folder on this computer once, and every change is written there as
+        <code>voice-typing-notes.json</code> a couple of seconds after you make it. Cloud-synced
+        folders (Google Drive, OneDrive, Dropbox) work too. Chrome and Edge only.
+      </p>
+      <p class="hint" id="autoStatus">Off.</p>
+      <div class="theme-row">
+        <button class="btn" id="autoOn">Choose a folder…</button>
+        <button class="btn" id="autoResume" hidden>Resume</button>
+        <button class="btn" id="autoOff" hidden>Turn off</button>
+      </div>
+      <h3 style="margin-top:18px">When notes can be lost</h3>
+      <ul class="hint tight">
+        <li>Clearing the browser's history or site data ("Cookies and site data"), or a cleaner
+          extension or app doing it for you.</li>
+        <li>An incognito window: everything goes when it closes.</li>
+        <li>Another browser, another profile, another computer, or a different address of this
+          page — each has its own storage.</li>
+        <li>Reinstalling the browser or the system.</li>
+      </ul>
     </section>
     <section>
       <h3>Privacy</h3>

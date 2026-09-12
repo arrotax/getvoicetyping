@@ -50,12 +50,23 @@
   if (!Array.isArray(state.folders)) state.folders = [];
   if (typeof state.hotkey !== 'string') state.hotkey = 'Ctrl+Q';
   if (!Array.isArray(state.trash)) state.trash = [];
+  if (!Array.isArray(state.openFolders)) state.openFolders = [];
+  // The folder-as-filter view is gone; a saved one falls back to the full list.
+  if (typeof state.filter === 'string' && state.filter.startsWith('folder:')) state.filter = 'all';
 
   let saveTimer;
   function save(now) {
     clearTimeout(saveTimer);
     const write = () => {
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* quota or private mode */ }
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        $('storageFull').hidden = true;
+      } catch {
+        // Quota, or a browser that blocks storage. Said out loud: the first version swallowed
+        // this, and a full store would have looked like a page that simply forgets.
+        $('storageFull').hidden = false;
+      }
+      scheduleAutoBackup();
     };
     if (now) write(); else saveTimer = setTimeout(write, 300);
   }
@@ -75,11 +86,17 @@
       || state.trash.find((n) => n.id === state.currentId) || null;
   }
 
-  function createNote() {
+  /**
+   * @param {string} [folderId] - "New note here" in a folder's menu. Otherwise the note
+   *   lands in the folder of the note being looked at, so working inside a folder stays
+   *   inside it; with no folder open it lands among the loose notes.
+   */
+  function createNote(folderId) {
     const note = { id: newId(), title: '', text: '', created: now(), updated: now() };
-    // Made while looking at a folder, the note goes into that folder. Made while looking
-    // at Recently deleted, the view goes back to All notes, where the note is.
-    if (currentFolderId()) note.folder = currentFolderId();
+    const here = current();
+    const target = typeof folderId === 'string' ? folderId : (here && !inTrash(here) && here.folder && folderOf(here.folder) ? here.folder : null);
+    if (target) { note.folder = target; setOpen(target, true); }
+    // Made while looking at Recently deleted, the view goes back to the list, where the note is.
     if (state.filter === 'trash') state.filter = 'all';
     state.notes.unshift(note);
     state.currentId = note.id;
@@ -129,17 +146,27 @@
   /* ---------- folders ----------
    *
    * A folder is a name with an id; a note carries the id of the folder it is in, or none.
-   * The list shows one folder at a time (state.filter = 'folder:<id>') or everything;
-   * a search always looks through every folder - searching is for finding, not browsing.
+   * Folders are a tree at the top of the list: a folder opens in place and shows its notes
+   * under it (state.openFolders remembers which are open), and the notes in no folder
+   * follow under their own heading. Nothing is ever filtered away by a folder - the first
+   * version did that, and a freshly made folder left the list looking empty.
    */
-
-  function currentFolderId() {
-    return typeof state.filter === 'string' && state.filter.startsWith('folder:')
-      ? state.filter.slice('folder:'.length) : null;
-  }
 
   function folderOf(id) {
     return state.folders.find((f) => f.id === id) || null;
+  }
+
+  function notesIn(folderId) {
+    return sorted(state.notes.filter((n) => (folderId ? n.folder === folderId : !n.folder || !folderOf(n.folder))));
+  }
+
+  function isOpen(folderId) {
+    return state.openFolders.includes(folderId);
+  }
+
+  function setOpen(folderId, open) {
+    state.openFolders = state.openFolders.filter((id) => id !== folderId);
+    if (open) state.openFolders.push(folderId);
   }
 
   function createFolder(name) {
@@ -147,17 +174,18 @@
     if (!clean) return null;
     const folder = { id: newId(), name: clean };
     state.folders.push(folder);
+    setOpen(folder.id, true);
     save(true);
     return folder;
   }
 
+  /** "+ New" above the list: the folder appears, open and empty, and nothing else moves. */
   function askNewFolder() {
-    const name = prompt('Folder name');
-    const folder = createFolder(name);
+    const folder = createFolder(prompt('Folder name'));
     if (!folder) return null;
-    state.filter = 'folder:' + folder.id;
-    save(true);
-    render(false);
+    renderList();
+    renderFolderSelect();
+    flash(`Folder "${folder.name}" created — add notes to it from a note's ⋮ menu`);
     return folder;
   }
 
@@ -171,81 +199,27 @@
     render(false);
   }
 
-  /** The folder goes; its notes stay, back in the main list. */
+  /** The folder goes; its notes stay, back among the notes in no folder. */
   function deleteFolder(folder) {
     const inside = state.notes.filter((n) => n.folder === folder.id).length;
-    const what = inside ? ` Its ${inside} ${inside === 1 ? 'note stays' : 'notes stay'} in All notes.` : '';
+    const what = inside ? ` Its ${inside} ${inside === 1 ? 'note stays' : 'notes stay'} in the list.` : '';
     if (!confirm(`Delete the folder "${folder.name}"?${what}`)) return;
     state.folders = state.folders.filter((f) => f.id !== folder.id);
     for (const n of state.notes) if (n.folder === folder.id) delete n.folder;
-    if (currentFolderId() === folder.id) state.filter = 'all';
+    setOpen(folder.id, false);
     save(true);
     render(false);
   }
 
   function moveToFolder(note, folderId) {
-    if (folderId) note.folder = folderId; else delete note.folder;
+    if (folderId) { note.folder = folderId; setOpen(folderId, true); } else delete note.folder;
     save(true);
-    // The note may have just left the folder being looked at; the list says so, the
-    // editor stays put.
-    renderFolders();
     renderList();
     renderFolderSelect();
+    flash(folderId ? `Moved to "${folderOf(folderId).name}"` : 'Taken out of its folder');
   }
 
-  function renderFolders() {
-    const box = $('folders');
-    box.textContent = '';
-    const head = document.createElement('div');
-    head.className = 'folders-head';
-    head.append(document.createTextNode('Folders'));
-    const add = document.createElement('button');
-    add.type = 'button';
-    add.id = 'newFolder';
-    add.textContent = '+ New';
-    add.title = 'New folder';
-    add.addEventListener('click', askNewFolder);
-    head.appendChild(add);
-    box.appendChild(head);
-    const active = currentFolderId();
-    for (const folder of state.folders) {
-      const row = document.createElement('div');
-      row.className = 'folder' + (folder.id === active ? ' current' : '');
-      row.setAttribute('role', 'button');
-      row.tabIndex = 0;
-      const ico = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      ico.setAttribute('viewBox', '0 0 24 24');
-      ico.setAttribute('class', 'ico');
-      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      p.setAttribute('d', 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z');
-      ico.appendChild(p);
-      const name = document.createElement('span');
-      name.className = 'name';
-      name.textContent = folder.name;
-      const count = document.createElement('span');
-      count.className = 'count';
-      count.textContent = String(state.notes.filter((n) => n.folder === folder.id).length);
-      const actions = document.createElement('div');
-      actions.className = 'note-actions';
-      actions.append(
-        iconButton('Rename folder', 'M4 20h4l10-10-4-4L4 16z M13 7l4 4', () => renameFolder(folder)),
-        iconButton('Delete folder', 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3', () => deleteFolder(folder)),
-      );
-      const open = () => {
-        state.filter = folder.id === active ? 'all' : 'folder:' + folder.id;
-        save(true);
-        render(false);
-      };
-      row.addEventListener('click', open);
-      row.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-      });
-      row.append(ico, name, count, actions);
-      box.appendChild(row);
-    }
-  }
-
-  /** The box above the note: which folder it is in, and a way to make a new one. */
+  /** The box next to the title: which folder the note is in, and a way to make a new one. */
   function renderFolderSelect() {
     const sel = $('folderSel');
     const note = current();
@@ -274,83 +248,295 @@
     if (!note) return;
     if (sel.value === '__new__') {
       const folder = createFolder(prompt('Folder name'));
-      if (folder) { moveToFolder(note, folder.id); renderFolders(); }
+      if (folder) moveToFolder(note, folder.id);
       else renderFolderSelect();
       return;
     }
     moveToFolder(note, sel.value || null);
   });
 
+  /* ---------- the row menu ----------
+   *
+   * One popover for every ⋮ in the list. It is built from a list of items each time, sits
+   * under the button that opened it, and goes on any click outside, on Esc, or when the
+   * list is drawn again. "Add to folder" swaps the items for the folder list in place.
+   */
+
+  const pop = $('pop');
+  let popAnchor = null;
+
+  function closeMenu() {
+    if (pop.hidden) return;
+    pop.hidden = true;
+    pop.textContent = '';
+    const row = popAnchor && popAnchor.closest('.note, .folder');
+    if (row) row.classList.remove('menu-open');
+    popAnchor = null;
+  }
+
+  /**
+   * @param {HTMLElement} anchor - the ⋮ button.
+   * @param {Array<{label?: string, icon?: string, danger?: boolean, checked?: boolean, title?: string, sep?: boolean, onClick?: Function}>} items
+   */
+  function openMenu(anchor, items) {
+    closeMenu();
+    popAnchor = anchor;
+    const row = anchor.closest('.note, .folder');
+    if (row) row.classList.add('menu-open');
+    fillMenu(items);
+    pop.hidden = false;
+    placeMenu();
+    const first = pop.querySelector('button');
+    if (first) first.focus();
+  }
+
+  function placeMenu() {
+    if (!popAnchor) return;
+    const r = popAnchor.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = Math.min(r.right - w, window.innerWidth - w - 8);
+    if (left < 8) left = 8;
+    let top = r.bottom + 4;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+  }
+
+  function fillMenu(items) {
+    pop.textContent = '';
+    for (const item of items) {
+      if (item.sep) { const s = document.createElement('div'); s.className = 'pop-sep'; pop.appendChild(s); continue; }
+      if (item.title) { const t = document.createElement('div'); t.className = 'pop-title'; t.textContent = item.title; pop.appendChild(t); continue; }
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      if (item.danger) b.classList.add('danger');
+      if (item.checked) b.classList.add('checked');
+      if (item.icon) {
+        const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        s.setAttribute('viewBox', '0 0 24 24');
+        s.setAttribute('class', 'ico');
+        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('d', item.icon);
+        s.appendChild(p);
+        b.appendChild(s);
+      }
+      b.appendChild(document.createTextNode(item.label));
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // An item may swap the menu's contents (a submenu) instead of closing it.
+        const keep = item.onClick && item.onClick() === 'keep';
+        if (!keep) closeMenu();
+        else placeMenu();
+      });
+      pop.appendChild(b);
+    }
+  }
+
+  document.addEventListener('click', (e) => { if (!pop.hidden && !pop.contains(e.target)) closeMenu(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) { closeMenu(); e.stopPropagation(); } }, true);
+  window.addEventListener('resize', closeMenu);
+
+  const ICON = {
+    star: 'M12 3l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.8 6.1 21l1.2-6.5L2.5 9.9 9.1 9z',
+    folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+    folderPlus: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M12 10v6 M9 13h6',
+    trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+    pencil: 'M4 20h4l10-10-4-4L4 16z M13 7l4 4',
+    check: 'M5 12l5 5L20 7',
+    back: 'M15 18l-6-6 6-6',
+    dots: 'M12 5h.01M12 12h.01M12 19h.01',
+    plus: 'M12 5v14M5 12h14',
+  };
+
+  function folderSubmenu(note) {
+    const items = [{ title: 'Add to folder' }];
+    for (const f of state.folders) {
+      const here = note.folder === f.id;
+      items.push({ label: f.name, icon: here ? ICON.check : ICON.folder, checked: here,
+        onClick: () => { if (!here) moveToFolder(note, f.id); } });
+    }
+    if (note.folder && folderOf(note.folder)) {
+      items.push({ label: 'Remove from folder', icon: ICON.back, onClick: () => moveToFolder(note, null) });
+    }
+    items.push({ sep: true });
+    items.push({ label: 'New folder…', icon: ICON.folderPlus, onClick: () => {
+      const folder = createFolder(prompt('Folder name'));
+      if (folder) moveToFolder(note, folder.id);
+    } });
+    return items;
+  }
+
+  function noteMenu(anchor, note) {
+    openMenu(anchor, [
+      { label: note.starred ? 'Remove from favourites' : 'Add to favourites', icon: ICON.star,
+        onClick: () => { note.starred = !note.starred; save(true); renderList(); renderStar(); } },
+      { label: 'Add to folder…', icon: ICON.folder, onClick: () => { fillMenu(folderSubmenu(note)); return 'keep'; } },
+      { sep: true },
+      { label: 'Delete', icon: ICON.trash, danger: true, onClick: () => deleteNote(note) },
+    ]);
+  }
+
+  function folderMenu(anchor, folder) {
+    openMenu(anchor, [
+      { label: 'New note here', icon: ICON.plus, onClick: () => createNote(folder.id) },
+      { label: 'Rename', icon: ICON.pencil, onClick: () => renameFolder(folder) },
+      { sep: true },
+      { label: 'Delete folder', icon: ICON.trash, danger: true, onClick: () => deleteFolder(folder) },
+    ]);
+  }
+
+  /* ---------- the list ---------- */
+
+  function sectionHead(text, button) {
+    const head = document.createElement('div');
+    head.className = 'list-head';
+    head.append(document.createTextNode(text));
+    if (button) head.appendChild(button);
+    return head;
+  }
+
+  function noteRow(note, opts = {}) {
+    // A div acting as a button, not a <button>: the row carries a real button of its own
+    // (the ⋮ menu), and a button inside a button is invalid HTML that browsers untangle
+    // unpredictably.
+    const row = document.createElement('div');
+    row.className = 'note' + (note.id === state.currentId ? ' current' : '') + (opts.indent ? ' in-folder' : '');
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+
+    const body = document.createElement('div');
+    body.className = 'note-body';
+    const t = document.createElement('div');
+    t.className = 't';
+    if (note.starred) t.appendChild(starMark());
+    t.appendChild(document.createTextNode(titleOf(note)));
+    const m = document.createElement('div');
+    m.className = 'm';
+    const words = (note.text || '').trim().split(/\s+/).filter(Boolean).length;
+    m.textContent = `${when(note.updated)} · ${words} ${words === 1 ? 'word' : 'words'}`;
+    // Where the row is not already under its folder, it names the folder.
+    if (opts.showFolder && note.folder && folderOf(note.folder)) m.textContent += ` · ${folderOf(note.folder).name}`;
+    body.append(t, m);
+
+    const actions = document.createElement('div');
+    actions.className = 'note-actions';
+    const more = iconButton('More', ICON.dots, () => noteMenu(more, note));
+    actions.append(more);
+
+    const open = () => {
+      state.currentId = note.id;
+      save(true);
+      render();
+      closeSide();
+    };
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+    row.append(body, actions);
+    return row;
+  }
+
+  function folderRow(folder) {
+    const row = document.createElement('div');
+    const open = isOpen(folder.id);
+    row.className = 'folder' + (open ? ' open' : '');
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-expanded', open ? 'true' : 'false');
+    row.tabIndex = 0;
+    const svg = (cls, d) => {
+      const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      s.setAttribute('viewBox', '0 0 24 24');
+      s.setAttribute('class', cls);
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', d);
+      s.appendChild(p);
+      return s;
+    };
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = folder.name;
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = String(notesIn(folder.id).length);
+    const actions = document.createElement('div');
+    actions.className = 'note-actions';
+    const more = iconButton('Folder menu', ICON.dots, () => folderMenu(more, folder));
+    actions.append(more);
+    const toggle = () => { setOpen(folder.id, !isOpen(folder.id)); save(true); renderList(); };
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+    row.append(svg('ico chev', 'M9 6l6 6-6 6'), svg('ico', ICON.folder), name, count, actions);
+    return row;
+  }
+
   function renderList() {
+    closeMenu();
     const q = searchInput.value.trim().toLowerCase();
     notesList.textContent = '';
-    const folder = currentFolderId();
-    $('filterAll').classList.toggle('primary', state.filter !== 'starred' && state.filter !== 'trash' && !folder);
+    $('filterAll').classList.toggle('primary', state.filter !== 'starred' && state.filter !== 'trash');
     $('filterStarred').classList.toggle('primary', state.filter === 'starred');
     $('menuTrash').classList.toggle('on', state.filter === 'trash');
     if (state.filter === 'trash') { renderTrashList(q); return; }
-    let shown = sorted(state.notes).filter((n) => !q || titleOf(n).toLowerCase().includes(q) || (n.text || '').toLowerCase().includes(q));
-    if (state.filter === 'starred') shown = shown.filter((n) => n.starred);
-    else if (folder && !q) shown = shown.filter((n) => n.folder === folder);
-    if (shown.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = q ? 'Nothing matches.'
-        : state.filter === 'starred' ? 'No favourites yet. Press the star on a note to keep it here.'
-        : folder ? 'This folder is empty. New note puts one here.'
-        : 'No notes yet. Press New note to start one.';
-      notesList.appendChild(empty);
+
+    const matches = (n) => !q || titleOf(n).toLowerCase().includes(q) || (n.text || '').toLowerCase().includes(q);
+    const empty = (text) => {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = text;
+      notesList.appendChild(e);
+    };
+
+    // A search or Favourites: one flat list, every note saying where it lives.
+    if (q || state.filter === 'starred') {
+      const shown = sorted(state.notes).filter(matches).filter((n) => state.filter !== 'starred' || n.starred);
+      if (shown.length === 0) {
+        empty(q ? 'Nothing matches.' : 'No favourites yet. Star a note to keep it here.');
+        return;
+      }
+      for (const note of shown) notesList.appendChild(noteRow(note, { showFolder: true }));
       return;
     }
-    for (const note of shown) {
-      // A div acting as a button, not a <button>: the row carries two real buttons of its
-      // own (star, delete), and a button inside a button is invalid HTML that browsers
-      // untangle unpredictably.
-      const row = document.createElement('div');
-      row.className = 'note' + (note.id === state.currentId ? ' current' : '');
-      row.setAttribute('role', 'button');
-      row.tabIndex = 0;
 
-      const body = document.createElement('div');
-      body.className = 'note-body';
-      const t = document.createElement('div');
-      t.className = 't';
-      if (note.starred) t.appendChild(starMark());
-      t.appendChild(document.createTextNode(titleOf(note)));
-      const m = document.createElement('div');
-      m.className = 'm';
-      const words = (note.text || '').trim().split(/\s+/).filter(Boolean).length;
-      m.textContent = `${when(note.updated)} · ${words} ${words === 1 ? 'word' : 'words'}`;
-      // Outside a folder view, a note says which folder it lives in.
-      if (note.folder && folderOf(note.folder) && !currentFolderId()) m.textContent += ` · ${folderOf(note.folder).name}`;
-      body.append(t, m);
-
-      const actions = document.createElement('div');
-      actions.className = 'note-actions';
-      const starBtn = iconButton(
-        note.starred ? 'Remove from favourites' : 'Add to favourites',
-        'M12 3l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.8 6.1 21l1.2-6.5L2.5 9.9 9.1 9z',
-        () => { note.starred = !note.starred; save(true); renderList(); renderStar(); },
-      );
-      if (note.starred) starBtn.classList.add('on');
-      const delBtn = iconButton('Delete note',
-        'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
-        () => deleteNote(note));
-      actions.append(starBtn, delBtn);
-
-      const open = () => {
-        state.currentId = note.id;
-        save(true);
-        render();
-        closeSide();
-      };
-      row.addEventListener('click', open);
-      row.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-      });
-      row.append(body, actions);
-      notesList.appendChild(row);
+    // Everything: the folders as a tree, then the notes in no folder.
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.id = 'newFolder';
+    add.textContent = '+ New';
+    add.title = 'New folder';
+    add.addEventListener('click', askNewFolder);
+    notesList.appendChild(sectionHead('Folders', add));
+    if (state.folders.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'folder-empty';
+      hint.style.marginLeft = '8px';
+      hint.textContent = 'No folders yet.';
+      notesList.appendChild(hint);
     }
+    for (const folder of state.folders) {
+      notesList.appendChild(folderRow(folder));
+      if (!isOpen(folder.id)) continue;
+      const inside = notesIn(folder.id);
+      if (inside.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'folder-empty';
+        hint.textContent = 'Empty — add a note from its ⋮ menu, or "New note here" in the folder menu.';
+        notesList.appendChild(hint);
+      }
+      for (const note of inside) notesList.appendChild(noteRow(note, { indent: true }));
+    }
+
+    const loose = notesIn(null);
+    notesList.appendChild(sectionHead('Notes'));
+    if (loose.length === 0) {
+      empty(state.notes.length ? 'Every note is in a folder.' : 'No notes yet. Press New note to start one.');
+      return;
+    }
+    for (const note of loose) notesList.appendChild(noteRow(note));
   }
 
   /** A small icon button for a list row. Clicks stop at the button, not the row under it. */
@@ -452,6 +638,7 @@
     const empty = document.createElement('button');
     empty.type = 'button';
     empty.id = 'emptyTrash';
+    empty.className = 'danger';
     empty.textContent = 'Empty';
     empty.hidden = state.trash.length === 0;
     empty.addEventListener('click', emptyTrash);
@@ -633,7 +820,6 @@
   }
 
   function render(focus = true) {
-    renderFolders();
     renderList();
     renderEditor(focus);
   }
@@ -751,8 +937,8 @@
     renderList();
     renderStar();
   });
-  $('filterAll').addEventListener('click', () => { state.filter = 'all'; save(true); renderFolders(); renderList(); });
-  $('filterStarred').addEventListener('click', () => { state.filter = 'starred'; save(true); renderFolders(); renderList(); });
+  $('filterAll').addEventListener('click', () => { state.filter = 'all'; save(true); renderList(); });
+  $('filterStarred').addEventListener('click', () => { state.filter = 'starred'; save(true); renderList(); });
 
   // Paste as plain text: the editor holds text, and pasted HTML would bring in fonts and
   // colours that do not belong to the note.
@@ -827,6 +1013,7 @@
       version: 1,
       exported: new Date().toISOString(),
       notes: state.notes,
+      folders: state.folders,
       trash: state.trash,
       words: state.words,
     };
@@ -851,6 +1038,7 @@
         updated: Number(raw.updated) || now(),
         starred: Boolean(raw.starred),
       };
+      if (typeof raw.folder === 'string') note.folder = raw.folder;
       if (typeof raw.html === 'string') note.html = sanitizeHtml(raw.html);
       if (Number.isFinite(raw.caret)) note.caret = raw.caret;
       const here = state.notes.find((n) => n.id === note.id);
@@ -860,6 +1048,13 @@
     }
     // Deleted notes travel too, so a restore on a fresh browser gives back Recently deleted
     // as well; a note that exists anywhere here already is left alone.
+    // Folders by id, so a note's folder field still points at something after the merge.
+    if (Array.isArray(data.folders)) {
+      for (const raw of data.folders) {
+        if (!raw || typeof raw.id !== 'string' || typeof raw.name !== 'string' || folderOf(raw.id)) continue;
+        state.folders.push({ id: raw.id, name: raw.name.trim().slice(0, 60) || 'Folder' });
+      }
+    }
     if (Array.isArray(data.trash)) {
       for (const raw of data.trash) {
         if (!raw || typeof raw.id !== 'string') continue;
@@ -920,6 +1115,174 @@
         ? 'That file could not be read as a backup.' : (e.message || 'Could not restore.');
     }
   });
+
+  /* ---------- automatic backup to a folder ----------
+   *
+   * A page cannot write to disk on its own. What it can do, in Chrome and Edge, is ask once
+   * for a folder (File System Access API) and keep the handle: from then on every change is
+   * written there as voice-typing-notes.json, a couple of seconds after it happens. The
+   * handle lives in IndexedDB so it survives a reload; after a browser restart Chrome may
+   * ask for the folder permission again, and asking needs a click - so the page shows a
+   * Resume button rather than prompting out of the blue.
+   *
+   * Only the content that a backup holds is compared before writing: a caret move saves
+   * state, but it is not a reason to touch the file.
+   */
+
+  const AUTO_FILE = 'voice-typing-notes.json';
+  const AUTO_DELAY_MS = 2000;
+  const HANDLE_DB = 'voiceTypingNotepad';
+  const HANDLE_KEY = 'autoBackupDir';
+
+  const autoSupported = typeof window.showDirectoryPicker === 'function';
+  let autoDir = null;          // the directory handle, or null when off
+  let autoStatus = 'off';      // off | on | paused | unsupported
+  let autoTimer = null;
+  let autoLastPayload = '';
+  let autoLastAt = 0;
+  let autoError = '';
+
+  function openHandleDb() {
+    return new Promise((resolve, reject) => {
+      let req;
+      try { req = indexedDB.open(HANDLE_DB, 1); } catch (e) { reject(e); return; }
+      req.onupgradeneeded = () => req.result.createObjectStore('kv');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function loadHandle() {
+    const db = await openHandleDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction('kv', 'readonly');
+      const req = tx.objectStore('kv').get(HANDLE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function storeHandle(handle) {
+    const db = await openHandleDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('kv', 'readwrite');
+      if (handle) tx.objectStore('kv').put(handle, HANDLE_KEY); else tx.objectStore('kv').delete(HANDLE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  function renderAutoBackup() {
+    const status = $('autoStatus');
+    const on = $('autoOn'), resume = $('autoResume'), off = $('autoOff');
+    $('autoPaused').hidden = autoStatus !== 'paused';
+    if (!autoSupported) {
+      status.textContent = 'Not available in this browser — Chrome or Edge can do it.';
+      on.disabled = true; resume.hidden = true; off.hidden = true;
+      return;
+    }
+    on.disabled = false;
+    const where = autoDir ? `"${autoDir.name}"` : 'a folder';
+    if (autoStatus === 'on') {
+      const when = autoLastAt ? ` Last written ${new Date(autoLastAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}.` : '';
+      status.textContent = `On — ${AUTO_FILE} in ${where}.${when}${autoError ? ' ' + autoError : ''}`;
+      on.textContent = 'Change folder…'; resume.hidden = true; off.hidden = false;
+    } else if (autoStatus === 'paused') {
+      status.textContent = `Paused — the browser needs permission for ${where} again.`;
+      on.textContent = 'Change folder…'; resume.hidden = false; off.hidden = false;
+    } else {
+      status.textContent = 'Off.';
+      on.textContent = 'Choose a folder…'; resume.hidden = true; off.hidden = true;
+    }
+  }
+
+  async function writeAutoBackup(force) {
+    if (!autoDir) return false;
+    const payload = JSON.stringify(makeBackup(), null, 2);
+    // makeBackup stamps the time, so compare the notes themselves.
+    const body = JSON.stringify({ n: state.notes, f: state.folders, t: state.trash, w: state.words });
+    if (!force && body === autoLastPayload) return true;
+    try {
+      const perm = await autoDir.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') { autoStatus = 'paused'; renderAutoBackup(); return false; }
+      const file = await autoDir.getFileHandle(AUTO_FILE, { create: true });
+      const w = await file.createWritable();
+      await w.write(payload);
+      await w.close();
+      autoLastPayload = body;
+      autoLastAt = now();
+      autoError = '';
+      autoStatus = 'on';
+    } catch (e) {
+      // The folder was moved or deleted, or the disk refused. Said in the status line and
+      // left on: the next change tries again.
+      autoError = 'The last write failed: ' + (e && e.message ? e.message : e);
+      autoStatus = 'on';
+    }
+    renderAutoBackup();
+    return !autoError;
+  }
+
+  function scheduleAutoBackup() {
+    if (!autoDir) return;
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(() => writeAutoBackup(false), AUTO_DELAY_MS);
+  }
+
+  async function chooseAutoFolder() {
+    if (!autoSupported) return;
+    let dir;
+    try {
+      dir = await window.showDirectoryPicker({ mode: 'readwrite', id: 'voice-typing-backup', startIn: 'documents' });
+    } catch {
+      return; // the picker was closed
+    }
+    autoDir = dir;
+    autoStatus = 'on';
+    renderAutoBackup();
+    await writeAutoBackup(true);
+    flash(autoError ? 'Could not write the backup' : `Backup written to "${dir.name}"`);
+    // Kept for the next visit - after the write, so a slow database never delays the file.
+    storeHandle(dir).catch(() => { /* the handle cannot be kept: on for this visit only */ });
+  }
+
+  async function resumeAutoBackup() {
+    if (!autoDir) return;
+    try {
+      const perm = await autoDir.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') return;
+    } catch { return; }
+    autoStatus = 'on';
+    await writeAutoBackup(true);
+  }
+
+  async function stopAutoBackup() {
+    autoDir = null;
+    autoStatus = 'off';
+    autoLastPayload = '';
+    autoError = '';
+    clearTimeout(autoTimer);
+    renderAutoBackup();
+    storeHandle(null).catch(() => { /* nothing kept, nothing to clear */ });
+  }
+
+  $('autoOn').addEventListener('click', chooseAutoFolder);
+  $('autoResume').addEventListener('click', resumeAutoBackup);
+  $('autoResumeTop').addEventListener('click', resumeAutoBackup);
+  $('autoOff').addEventListener('click', stopAutoBackup);
+
+  if (!autoSupported) autoStatus = 'unsupported';
+  renderAutoBackup();
+  if (autoSupported) {
+    loadHandle().then(async (handle) => {
+      if (!handle || typeof handle.queryPermission !== 'function') return;
+      autoDir = handle;
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      autoStatus = perm === 'granted' ? 'on' : 'paused';
+      renderAutoBackup();
+      if (perm === 'granted') writeAutoBackup(false);
+    }).catch(() => { /* no IndexedDB here: auto-backup stays off */ });
+  }
 
   /* ---------- status strip ---------- */
 
