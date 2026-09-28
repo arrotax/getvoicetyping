@@ -73,6 +73,14 @@
     display: flex; align-items: center; gap: 12px; padding: 10px 20px;
     background: var(--panel); border-bottom: 1px solid var(--line);
   }
+  .ext-callout {
+    display: flex; align-items: center; gap: 14px; padding: 6px 8px 6px 16px; border-radius: 12px;
+    background: var(--brand-soft); border: 1px solid transparent;
+  }
+  .ext-text { display: flex; flex-direction: column; line-height: 1.25; }
+  .ext-text b { font-size: 15px; color: var(--ink); }
+  .ext-text span { font-size: 12.5px; color: var(--ink2); margin-top: 2px; }
+  .ext-callout .btn { flex: none; }
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
   .brand-name { font-weight: 800; font-size: 19px; letter-spacing: -.02em; color: var(--ink); }
@@ -220,8 +228,9 @@
 
   /* The one thing the sidebar sells: the extension. Kept at the bottom where the eye
      rests after the list, in the brand blue so it reads as a different product. */
-  .promo { margin: 2px 12px 6px; padding: 0; }
-  .promo p { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+  .promo { margin: 4px 12px 6px; padding: 10px 12px; border-radius: 10px; background: var(--brand-soft); }
+  .promo b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .promo p { margin: 0 0 8px; font-size: 12px; line-height: 1.4; color: var(--ink2); }
   .promo .btn { width: 100%; justify-content: center; min-height: 36px; }
 
   /* ---------- main ---------- */
@@ -378,7 +387,9 @@
     .top { padding: 8px 12px; }
     .brand-tag { display: none; }
     .brand-name { font-size: 16px; }
-    .top .ext-top { display: none; }
+    .ext-callout { padding: 4px; background: transparent; }
+    .ext-text { display: none; }
+    .top .grow:last-child { display: none; }
     .work { padding: 14px 12px 48px; }
     .title { font-size: 19px; padding: 13px 14px; }
     .editor { font-size: 16px; padding: 14px 14px 20px; }
@@ -408,10 +419,20 @@
       </span>
     </div>
     <span class="grow"></span>
-    <a class="btn brand ext-top ext-link" href="#" target="_blank" rel="noopener">
-      <svg class="ico" viewBox="0 0 24 24"><path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7"/><path d="M15 4h5v5"/><path d="M20 4L10 14"/></svg>
-      Get the Chrome extension
-    </a>
+    <!-- The first thing a visitor should understand: the extension is the product, this page
+         is the free notepad. Hence a call-out in the middle of the header, not a button in the
+         corner - asked for on 2026-09-20. -->
+    <div class="ext-callout">
+      <span class="ext-text">
+        <b>Chrome extension for typing with your voice</b>
+        <span>Dictate into Gmail, Google Docs, chats — any text field</span>
+      </span>
+      <a class="btn brand ext-top ext-link" href="#" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        Add to Chrome
+      </a>
+    </div>
+    <span class="grow"></span>
   </header>
 
   <div class="body">
@@ -451,7 +472,8 @@
         </a>
       </nav>
       <div class="promo">
-        <p>The Voice Typing Chrome extension puts the same dictation into any text field — Gmail, Google Docs, chats, forms.</p>
+        <b>Get the Chrome extension</b>
+        <p>Type with your voice in any text field — Gmail, Google Docs, chats, forms.</p>
         <a class="btn brand ext-link" href="#" target="_blank" rel="noopener">Get the extension</a>
       </div>
       <div class="copy">&copy; <span id="year">2026</span> New Horizon Studio</div>

@@ -19,9 +19,10 @@
 
   const $ = (id) => document.getElementById(id);
 
-  // Where "Get the extension" points. One place to change when the store listing goes
-  // live - every link on the page reads it from here.
-  const EXTENSION_URL = 'https://getvoicetyping.com/';
+  // Where every "Get the extension" link points. One constant, read by all of them, and
+  // the store listing went live on 2026-09-28 - until then this pointed at this very site,
+  // which on a page served from that site meant the buttons led back to themselves.
+  const EXTENSION_URL = 'https://chromewebstore.google.com/detail/voice-typing/bmpkbmiompmjhgfbmnhdgbfgmjchijnk';
   for (const a of document.querySelectorAll('.ext-link')) a.href = EXTENSION_URL;
 
   /* ---------- storage ----------
